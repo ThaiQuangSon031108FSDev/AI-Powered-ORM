@@ -50,3 +50,9 @@ next-env.d.ts
 .copilot/
 .claude/
 .specify/
+
+# Unnecessary markdown guidelines for the final deliverable
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+yeucau.md
