@@ -6,8 +6,8 @@ export async function POST(request: Request) {
   try {
     const { reviewId, reviewText, authorName, rating } = await request.json();
 
-    if (!reviewId || !reviewText) {
-      return NextResponse.json({ error: 'reviewId and reviewText are required' }, { status: 400 });
+    if (!reviewId) {
+      return NextResponse.json({ error: 'reviewId is required' }, { status: 400 });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       const prompt = `
       You are a professional customer service representative.
       A customer named "${authorName}" left a ${rating}-star review:
-      "${reviewText}"
+      "${reviewText || '(Khách hàng chỉ xếp hạng sao và không để lại nhận xét bằng lời)'}"
       
       Generate 3 distinct responses to this review in Vietnamese.
       Response 1: Standard professional tone.
