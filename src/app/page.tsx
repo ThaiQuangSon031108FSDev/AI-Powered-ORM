@@ -119,25 +119,33 @@ export default function Dashboard() {
             <p className="text-slate-500 mt-1">Quản trị đánh giá khách hàng bằng AI</p>
           </div>
           
-          <div className="flex w-full md:w-auto items-center gap-2">
-            <input 
-              type="text" 
-              placeholder="Nhập Place ID..." 
-              value={placeId}
-              onChange={(e) => setPlaceId(e.target.value)}
-              className="flex-1 md:w-64 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-            <button 
-              onClick={handleFetchReviews}
-              disabled={isFetchingReviews || !placeId}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm shadow-blue-200"
+          <div className="flex flex-col items-stretch md:items-end gap-1.5 w-full md:w-auto">
+            <div className="flex w-full md:w-auto items-center gap-2">
+              <input 
+                type="text" 
+                placeholder="Nhập Place ID..." 
+                value={placeId}
+                onChange={(e) => setPlaceId(e.target.value)}
+                className="flex-1 md:w-64 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+              />
+              <button 
+                onClick={handleFetchReviews}
+                disabled={isFetchingReviews || !placeId}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm shadow-blue-200 text-sm"
+              >
+                {isFetchingReviews ? (
+                  <span className="w-5.5 h-5.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                )}
+                Fetch
+              </button>
+            </div>
+            <button
+              onClick={() => setPlaceId('ChIJN1t_tDeuEmsRUsoyG83frY4')}
+              className="text-xs text-blue-500 hover:text-blue-700 hover:underline text-left md:text-right px-1 flex items-center gap-1 self-start md:self-auto"
             >
-              {isFetchingReviews ? (
-                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              )}
-              Fetch
+              💡 Dùng thử Place ID mẫu (Google Sydney)
             </button>
           </div>
         </header>
