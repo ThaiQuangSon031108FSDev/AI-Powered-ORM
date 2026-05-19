@@ -62,29 +62,40 @@ export async function POST(request: Request) {
         ]
       }`;
 
-      // Gọi Gemini API và ép kiểu trả về dạng JSON
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
-      });
-
-      const responseText = result.response.text();
-      let parsed;
       try {
-        parsed = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Gemini returned invalid JSON:', responseText);
-        throw new Error('Gemini API did not return valid JSON.');
+        // Gọi Gemini API và ép kiểu trả về dạng JSON
+        const result = await model.generateContent({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        });
+
+        const responseText = result.response.text();
+        let parsed;
+        try {
+          parsed = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Gemini returned invalid JSON:', responseText);
+          throw new Error('Gemini API did not return valid JSON.');
+        }
+        
+        if (!parsed.responses || !Array.isArray(parsed.responses)) {
+          console.error('Gemini returned JSON without a valid "responses" array:', parsed);
+          throw new Error('Invalid JSON structure returned from Gemini');
+        }
+        
+        responses = parsed.responses;
+      } catch (aiExecutionError: any) {
+        console.error('🔥 Gemini API execution failed (Rate limit, Quota exceeded, or Network error):', aiExecutionError.message);
+        console.warn('🛡️ Bật khiên bảo vệ: Fallback sang Mock AI Responses để giữ ứng dụng luôn mượt mà...');
+        
+        responses = [
+          `Cảm ơn ${authorName || 'bạn'} đã dành thời gian đánh giá. Chúng tôi ghi nhận ý kiến của bạn và sẽ cải thiện dịch vụ hơn nữa.`,
+          `Tuyệt vời quá! Rất vui vì ${authorName || 'quý khách'} đã có trải nghiệm tốt. Hẹn gặp lại quý khách sớm nhé!`,
+          `Thành thật xin lỗi ${authorName || 'bạn'} vì những điểm chưa hoàn thiện. Chúng tôi đang kiểm tra lại quy trình để khắc phục sự cố này.`
+        ];
       }
-      
-      if (!parsed.responses || !Array.isArray(parsed.responses)) {
-        console.error('Gemini returned JSON without a valid "responses" array:', parsed);
-        throw new Error('Invalid JSON structure returned from Gemini');
-      }
-      
-      responses = parsed.responses;
     } else {
       // Mock logic if no API key is provided
       console.warn('GEMINI_API_KEY missing. Using mock AI responses.');
