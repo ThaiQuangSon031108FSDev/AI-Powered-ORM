@@ -10,8 +10,8 @@ import {
 export const maxDuration = 30;
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 tiếng
-const SERPAPI_DELAY_MS = 300;
-const MAX_PAGES = 5;
+const SERPAPI_DELAY_MS = 100;
+const MAX_PAGES = 30;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
