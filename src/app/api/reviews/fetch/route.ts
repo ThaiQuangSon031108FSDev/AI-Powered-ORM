@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { saveReviews, Review } from '@/lib/db';
+import { saveReviews, getReviewsByPlaceId, getSyncTimestamp, Review } from '@/lib/db';
 
 // ============================================================
 // IN-MEMORY CACHE (12h TTL) — tránh gọi SerpAPI lặp lại
@@ -26,10 +26,24 @@ export async function POST(request: Request) {
 
     const cacheKey = getCacheKey(placeId, pageToken);
 
-    // ── Kiểm tra Cache ──────────────────────────────────────
+    // ── Tầng 0: Supabase Persistent Cache (sống qua cold starts) ──
+    // Nếu user đã từng "Sync tất cả" cho place này và data còn tươi
+    // → trả về từ DB ngay, không tốn 1 API call nào
+    if (!pageToken) {
+      const lastSync = await getSyncTimestamp(placeId);
+      if (lastSync && Date.now() - lastSync < CACHE_TTL_MS) {
+        const dbReviews = await getReviewsByPlaceId(placeId);
+        if (dbReviews.length > 0) {
+          console.log(`✅ Supabase Cache HIT [${placeId}] — ${dbReviews.length} reviews, 0 API call`);
+          return NextResponse.json({ reviews: dbReviews, nextPageToken: null, fromCache: true });
+        }
+      }
+    }
+
+    // ── Tầng 1: In-memory Cache (nhanh nhất, trong cùng instance) ─
     const cached = reviewCache.get(cacheKey);
     if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
-      console.log(`✅ Cache HIT cho [${cacheKey}] — bỏ qua API call`);
+      console.log(`✅ Memory Cache HIT [${cacheKey}] — bỏ qua API call`);
       const saved = await saveReviews(cached.reviews);
       return NextResponse.json({
         reviews: saved,
@@ -40,6 +54,7 @@ export async function POST(request: Request) {
 
     const googleApiKey = process.env.GOOGLE_PLACES_API_KEY;
     const serpApiKey = process.env.SERPAPI_API_KEY;
+
 
     let fetchedReviews: Omit<Review, 'id' | 'status' | 'created_at' | 'generated_responses'>[] = [];
     let nextPageToken: string | null = null;

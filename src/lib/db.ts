@@ -62,6 +62,55 @@ export async function getReviews(): Promise<Review[]> {
   return [...mockReviews].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
+// ──────────────────────────────────────────────────────────
+// Lấy tất cả reviews theo place_id từ DB (persistent cache)
+// ──────────────────────────────────────────────────────────
+export async function getReviewsByPlaceId(placeId: string): Promise<Review[]> {
+  if (isSupabaseConfigured() && supabase) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('place_id', placeId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Supabase error fetching by place_id:', error);
+      return [];
+    }
+    return (data as Review[]) || [];
+  }
+  // Fallback: lọc từ mockReviews in-memory
+  return mockReviews.filter(r => r.place_id === placeId);
+}
+
+// ──────────────────────────────────────────────────────────
+// Quản lý timestamp lần sync cuối cùng per place_id
+// (lưu vào bảng "sync_cache" trên Supabase)
+// ──────────────────────────────────────────────────────────
+const inMemorySyncCache = new Map<string, number>(); // Fallback khi không có Supabase
+
+export async function getSyncTimestamp(placeId: string): Promise<number | null> {
+  if (isSupabaseConfigured() && supabase) {
+    const { data } = await supabase
+      .from('sync_cache')
+      .select('synced_at')
+      .eq('place_id', placeId)
+      .maybeSingle();
+    return data?.synced_at ? new Date(data.synced_at).getTime() : null;
+  }
+  return inMemorySyncCache.get(placeId) ?? null;
+}
+
+export async function upsertSyncTimestamp(placeId: string): Promise<void> {
+  if (isSupabaseConfigured() && supabase) {
+    await supabase.from('sync_cache').upsert(
+      { place_id: placeId, synced_at: new Date().toISOString() },
+      { onConflict: 'place_id' }
+    );
+    return;
+  }
+  inMemorySyncCache.set(placeId, Date.now());
+}
+
 export async function saveReviews(reviews: Omit<Review, 'id' | 'status' | 'created_at' | 'generated_responses'>[]): Promise<Review[]> {
   if (isSupabaseConfigured() && supabase) {
     const { data, error } = await supabase
