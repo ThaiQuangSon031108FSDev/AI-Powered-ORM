@@ -56,23 +56,62 @@ export default function Dashboard() {
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [currentPlaceId, setCurrentPlaceId] = useState('');
 
+  // ── LOCAL STORAGE ENGINE (Tự động hóa 100% việc lưu trữ) ──
+  // Auto-save: Mỗi khi danh sách reviews thay đổi, tự động sync xuống trình duyệt
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const activeId = localStorage.getItem('ucorm_last_place_id') || '';
+      if (activeId) {
+        setCurrentPlaceId(activeId);
+        const cached = localStorage.getItem(`ucorm_reviews_${activeId}`);
+        if (cached) {
+          try { setReviews(JSON.parse(cached)); } catch (e) { console.error(e); }
+        }
+      }
+    }
+  });
+
+  const saveToLocal = (newReviews: Review[], targetPlaceId: string) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(`ucorm_reviews_${targetPlaceId}`, JSON.stringify(newReviews));
+    localStorage.setItem('ucorm_last_place_id', targetPlaceId);
+  };
+
   const analytics = computeAnalytics(reviews);
 
   const handleFetchReviews = async () => {
     if (!placeId) return;
+    const targetId = placeId;
     setIsFetchingReviews(true);
-    setReviews([]);
     setNextPageToken(null);
-    setCurrentPlaceId(placeId);
+    setCurrentPlaceId(targetId);
+    
+    // Tải trước từ LocalStorage nếu có để UI hiện ra ngay tức thì
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(`ucorm_reviews_${targetId}`);
+      if (cached) {
+        try {
+          setReviews(JSON.parse(cached));
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        setReviews([]);
+      }
+    } else {
+      setReviews([]);
+    }
+
     try {
       const res = await fetch('/api/reviews/fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ placeId }),
+        body: JSON.stringify({ placeId: targetId }),
       });
       const data = await res.json();
       if (data.reviews) {
         setReviews(data.reviews);
+        saveToLocal(data.reviews, targetId);
         setNextPageToken(data.nextPageToken || null);
         setPlaceId('');
       }
@@ -88,7 +127,6 @@ export default function Dashboard() {
     const targetId = currentPlaceId || placeId;
     setIsSyncing(true);
     setSyncStats(null);
-    setReviews([]);
     setNextPageToken(null);
     setCurrentPlaceId(targetId);
     try {
@@ -100,6 +138,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.reviews) {
         setReviews(data.reviews);
+        saveToLocal(data.reviews, targetId);
         setSyncStats({ total: data.total, pages: data.pagesScanned, isMock: data.isMock });
         setPlaceId('');
       }
@@ -121,7 +160,9 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.reviews) {
-        setReviews(prev => [...prev, ...data.reviews]);
+        const updated = [...reviews, ...data.reviews];
+        setReviews(updated);
+        saveToLocal(updated, currentPlaceId);
         setNextPageToken(data.nextPageToken || null);
       }
     } catch (e) {
@@ -146,11 +187,13 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.responses) {
-        setReviews(prev => prev.map(r =>
+        const updated = reviews.map(r =>
           r.id === review.id
             ? { ...r, generated_responses: data.responses }
             : r
-        ));
+        );
+        setReviews(updated);
+        saveToLocal(updated, currentPlaceId);
       }
     } catch (e) {
       console.error(e);
@@ -168,9 +211,11 @@ export default function Dashboard() {
         body: JSON.stringify({ reviewId, approvedResponseIndex: index }),
       });
       if (res.ok) {
-        setReviews(prev => prev.map(r =>
+        const updated = reviews.map(r =>
           r.id === reviewId ? { ...r, status: 'Resolved' } : r
-        ));
+        );
+        setReviews(updated);
+        saveToLocal(updated, currentPlaceId);
       }
     } catch (e) {
       console.error(e);
