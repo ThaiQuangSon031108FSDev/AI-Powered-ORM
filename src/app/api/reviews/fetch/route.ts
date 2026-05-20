@@ -46,8 +46,8 @@ export async function POST(request: Request) {
 
     // ── 1. SerpAPI (Ưu tiên) ────────────────────────────────
     if (serpApiKey) {
-      // num=20: lấy 20 reviews mỗi trang thay vì mặc định 10
-      let url = `https://serpapi.com/search.json?engine=google_maps_reviews&place_id=${placeId}&num=20&api_key=${serpApiKey}`;
+      // google_maps_reviews engine không hỗ trợ tham số "num"
+      let url = `https://serpapi.com/search.json?engine=google_maps_reviews&place_id=${placeId}&api_key=${serpApiKey}`;
       if (pageToken) url += `&next_page_token=${encodeURIComponent(pageToken)}`;
 
       console.log(`🌐 Gọi SerpAPI cho [${placeId}] — trang: ${pageToken || 'đầu tiên'}`);
@@ -58,7 +58,10 @@ export async function POST(request: Request) {
       } else {
         const data = await response.json();
 
-        if (data.reviews && data.reviews.length > 0) {
+        // SerpAPI quota hết → trả về HTTP 200 nhưng body có trường "error"
+        if (data.error) {
+          console.error('❌ SerpAPI lỗi:', data.error);
+        } else if (data.reviews && data.reviews.length > 0) {
           fetchedReviews = data.reviews.map((r: any) => ({
             place_id: placeId,
             author_name: r.user?.name || 'Ẩn danh',
@@ -68,14 +71,14 @@ export async function POST(request: Request) {
 
           // Lấy token trang tiếp theo (nếu có)
           nextPageToken = data.serpapi_pagination?.next_page_token || null;
-        }
 
-        // Ghi vào Cache
-        reviewCache.set(cacheKey, {
-          reviews: fetchedReviews,
-          nextPageToken,
-          cachedAt: Date.now(),
-        });
+          // Ghi vào Cache chỉ khi có data thật
+          reviewCache.set(cacheKey, {
+            reviews: fetchedReviews,
+            nextPageToken,
+            cachedAt: Date.now(),
+          });
+        }
       }
     }
     // ── 2. Google Places API (Dự phòng) ─────────────────────
