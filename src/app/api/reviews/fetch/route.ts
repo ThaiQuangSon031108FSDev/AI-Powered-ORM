@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     }
 
     // ── 3. Mock Fallback (nếu không có API key hoặc API lỗi) ─
-    if (fetchedReviews.length === 0 && !pageToken) {
+    if (fetchedReviews.length === 0) {
       console.warn('⚠️  Không có API key hoặc không có dữ liệu. Dùng Mock Reviews.');
       const mockTexts = [
         'Phòng sạch sẽ, nhân viên thân thiện. Sẽ quay lại!',
@@ -109,12 +109,26 @@ export async function POST(request: Request) {
         'Nhân viên lễ tân nhiệt tình, check-in rất nhanh.',
         'Bữa sáng đa dạng, phòng yên tĩnh, ngủ rất ngon.',
       ];
-      fetchedReviews = Array.from({ length: 8 }).map((_, i) => ({
-        place_id: placeId,
-        author_name: `Khách hàng ${Math.floor(Math.random() * 900) + 100}`,
-        rating: Math.floor(Math.random() * 5) + 1,
-        text: mockTexts[i % mockTexts.length],
-      }));
+
+      if (!pageToken) {
+        // Sinh 20 review cho trang đầu tiên
+        fetchedReviews = Array.from({ length: 20 }).map((_, i) => ({
+          place_id: placeId,
+          author_name: `Khách hàng ${Math.floor(Math.random() * 900) + 100}`,
+          rating: Math.floor(Math.random() * 5) + 1,
+          text: mockTexts[i % mockTexts.length],
+        }));
+        nextPageToken = 'mock-page-2'; // Tạo token giả để hiện nút Load More
+      } else if (pageToken === 'mock-page-2') {
+        // Sinh tiếp 10 review khi bấm Load More
+        fetchedReviews = Array.from({ length: 10 }).map((_, i) => ({
+          place_id: placeId,
+          author_name: `Khách hàng ${Math.floor(Math.random() * 900) + 1000}`,
+          rating: Math.floor(Math.random() * 5) + 1,
+          text: mockTexts[(i + 3) % mockTexts.length],
+        }));
+        nextPageToken = null; // Hết trang tiếp theo
+      }
     }
 
     // ── Lưu vào DB và trả về ────────────────────────────────
