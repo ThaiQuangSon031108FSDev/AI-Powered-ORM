@@ -97,38 +97,29 @@ export async function POST(request: Request) {
     }
 
     // ── 3. Mock Fallback (nếu không có API key hoặc API lỗi) ─
+    // Chỉ dùng khi không có dữ liệu thật. nextPageToken luôn = null
+    // để nút "Tải thêm" KHÔNG bao giờ xuất hiện khi đang dùng mock data.
     if (fetchedReviews.length === 0) {
       console.warn('⚠️  Không có API key hoặc không có dữ liệu. Dùng Mock Reviews.');
-      const mockTexts = [
-        'Phòng sạch sẽ, nhân viên thân thiện. Sẽ quay lại!',
-        'Vị trí đẹp, tiện đi lại. Đồ ăn sáng hơi ít món.',
-        'Khách sạn cũ, cần nâng cấp. Máy lạnh kêu to.',
-        'Dịch vụ tuyệt vời, trên cả kỳ vọng của tôi.',
-        'Giá cả hợp lý, phù hợp đi công tác ngắn ngày.',
-        'View đẹp nhưng thang máy hay bị chờ lâu.',
-        'Nhân viên lễ tân nhiệt tình, check-in rất nhanh.',
-        'Bữa sáng đa dạng, phòng yên tĩnh, ngủ rất ngon.',
+      const mockPool = [
+        { text: 'Phòng sạch sẽ, nhân viên thân thiện. Sẽ quay lại!', rating: 5 },
+        { text: 'Vị trí đẹp, tiện đi lại. Đồ ăn sáng hơi ít món.', rating: 4 },
+        { text: 'Khách sạn cũ, cần nâng cấp. Máy lạnh kêu to.', rating: 2 },
+        { text: 'Dịch vụ tuyệt vời, trên cả kỳ vọng của tôi.', rating: 5 },
+        { text: 'Giá cả hợp lý, phù hợp đi công tác ngắn ngày.', rating: 4 },
+        { text: 'View đẹp nhưng thang máy hay bị chờ lâu.', rating: 3 },
+        { text: 'Nhân viên lễ tân nhiệt tình, check-in rất nhanh.', rating: 5 },
+        { text: 'Bữa sáng đa dạng, phòng yên tĩnh, ngủ rất ngon.', rating: 4 },
+        { text: 'Phòng nhỏ hơn ảnh quảng cáo, hơi thất vọng.', rating: 2 },
+        { text: 'Sẽ giới thiệu cho bạn bè, trải nghiệm tuyệt vời!', rating: 5 },
       ];
-
-      if (!pageToken) {
-        // Sinh 20 review cho trang đầu tiên
-        fetchedReviews = Array.from({ length: 20 }).map((_, i) => ({
-          place_id: placeId,
-          author_name: `Khách hàng ${Math.floor(Math.random() * 900) + 100}`,
-          rating: Math.floor(Math.random() * 5) + 1,
-          text: mockTexts[i % mockTexts.length],
-        }));
-        nextPageToken = 'mock-page-2'; // Tạo token giả để hiện nút Load More
-      } else if (pageToken === 'mock-page-2') {
-        // Sinh tiếp 10 review khi bấm Load More
-        fetchedReviews = Array.from({ length: 10 }).map((_, i) => ({
-          place_id: placeId,
-          author_name: `Khách hàng ${Math.floor(Math.random() * 900) + 1000}`,
-          rating: Math.floor(Math.random() * 5) + 1,
-          text: mockTexts[(i + 3) % mockTexts.length],
-        }));
-        nextPageToken = null; // Hết trang tiếp theo
-      }
+      fetchedReviews = Array.from({ length: 10 }).map((_, i) => ({
+        place_id: placeId,
+        author_name: `Khách hàng ${Math.floor(Math.random() * 900) + 100}`,
+        rating: mockPool[i % mockPool.length].rating,
+        text: mockPool[i % mockPool.length].text,
+      }));
+      // nextPageToken giữ nguyên = null → nút "Tải thêm" sẽ KHÔNG hiện
     }
 
     // ── Lưu vào DB và trả về ────────────────────────────────
