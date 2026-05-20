@@ -212,7 +212,7 @@ export default function Dashboard() {
       });
       if (res.ok) {
         const updated = reviews.map(r =>
-          r.id === reviewId ? { ...r, status: 'Resolved' } : r
+          r.id === reviewId ? { ...r, status: 'Resolved' as ReviewStatus } : r
         );
         setReviews(updated);
         saveToLocal(updated, currentPlaceId);
