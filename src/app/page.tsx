@@ -49,6 +49,8 @@ export default function Dashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isFetchingReviews, setIsFetchingReviews] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStats, setSyncStats] = useState<{ total: number; pages: number; isMock: boolean } | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
@@ -78,6 +80,33 @@ export default function Dashboard() {
       console.error(e);
     } finally {
       setIsFetchingReviews(false);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    if (!currentPlaceId && !placeId) return;
+    const targetId = currentPlaceId || placeId;
+    setIsSyncing(true);
+    setSyncStats(null);
+    setReviews([]);
+    setNextPageToken(null);
+    setCurrentPlaceId(targetId);
+    try {
+      const res = await fetch('/api/reviews/sync-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placeId: targetId }),
+      });
+      const data = await res.json();
+      if (data.reviews) {
+        setReviews(data.reviews);
+        setSyncStats({ total: data.total, pages: data.pagesScanned, isMock: data.isMock });
+        setPlaceId('');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -188,22 +217,48 @@ export default function Dashboard() {
                 Fetch
               </button>
             </div>
-            <button
-              onClick={() => setPlaceId('ChIJN1t_tDeuEmsRUsoyG83frY4')}
-              className="text-xs text-blue-500 hover:text-blue-700 hover:underline text-left md:text-right px-1 flex items-center gap-1 self-start md:self-auto"
-            >
-              💡 Dùng thử Place ID mẫu (Google Sydney)
-            </button>
+            <div className="flex items-center gap-2 flex-wrap justify-start md:justify-end">
+              <button
+                onClick={() => setPlaceId('ChIJN1t_tDeuEmsRUsoyG83frY4')}
+                className="text-xs text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-1"
+              >
+                💡 Dùng thử Place ID mẫu (Google Sydney)
+              </button>
+              {(currentPlaceId || placeId) && (
+                <button
+                  onClick={handleSyncAll}
+                  disabled={isSyncing}
+                  className="text-xs px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSyncing ? (
+                    <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />Đang sync...</>
+                  ) : (
+                    <><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>Sync tất cả</>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </header>
 
         {/* ── Analytics Panel (chỉ hiển thị khi có reviews) ─── */}
         {reviews.length > 0 && (
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <h2 className="text-base font-semibold text-slate-700 mb-5 flex items-center gap-2">
-              <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-              Báo cáo tổng quan
-            </h2>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                Báo cáo tổng quan
+              </h2>
+              {syncStats && (
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${
+                  syncStats.isMock
+                    ? 'bg-amber-50 text-amber-600 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                }`}>
+                  {syncStats.isMock ? '⚠️ Dữ liệu mẫu' : `✅ Đầy đủ · ${syncStats.total} reviews · ${syncStats.pages} trang`}
+                </span>
+              )}
+            </div>
 
             {/* Stat cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
